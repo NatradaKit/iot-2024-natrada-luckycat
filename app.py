@@ -1,25 +1,7 @@
-from dotenv import load_dotenv
-load_dotenv()
-
-from fastapi import FastAPI, Depends, Response, APIRouter
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-
-# Import models
-from database import SessionLocal, engine
-import models
-
-models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-router_v1 = APIRouter(prefix='/api/v1')
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,35 +11,80 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# https://fastapi.tiangolo.com/tutorial/sql-databases/#crud-utils
+# Define a list of books
+books = [
+    {
+        'id': 1,
+        'title': 'Python 101',
+        'author': 'Panwit Tu.',
+    },
+    {
+        'id': 2,
+        'title': 'Python 201',
+        'author': 'Panwit Tu.',
+    },
+    {
+        'id': 3,
+        'title': 'Python 301',
+        'author': 'Panwit Tu.',
+    }
+]
 
-@router_v1.get('/books')
-async def get_books(db: Session = Depends(get_db)):
-    return db.query(models.Book).all()
+@app.get('/api/v1/')
+def root():
+    return {
+        'version': '1.0.0'
+    }
 
-@router_v1.get('/books/{book_id}')
-async def get_book(book_id: int, db: Session = Depends(get_db)):
-    return db.query(models.Book).filter(models.Book.id == book_id).first()
+@app.get('/api/v1/books')
+def get_books():
+    return books
 
-@router_v1.post('/books')
-async def create_book(book: dict, response: Response, db: Session = Depends(get_db)):
-    # TODO: Add validation
-    newbook = models.Book(title=book['title'], author=book['author'], year=book['year'], is_published=book['is_published'])
-    db.add(newbook)
-    db.commit()
-    db.refresh(newbook)
+@app.get('/api/v1/books/{book_id}')
+def get_book(book_id: int, response: Response):
+    for book in books:
+        if book['id'] == book_id:
+            return book
+    response.status_code = 404
+    return {
+        'message': 'Book not found'
+    }
+
+@app.post('/api/v1/books')
+def create_book(book: dict, response: Response):
+    books.append(book)
     response.status_code = 201
-    return newbook
+    return book
 
-# @router_v1.patch('/books/{book_id}')
-# async def update_book(book_id: int, book: dict, db: Session = Depends(get_db)):
-#     pass
+@app.put('/api/v1/books/{book_id}')
+def update_book(book_id: int, book: dict, response: Response):
+    for i, b in enumerate(books):
+        if b['id'] == book_id:
+            books[i] = book
+            return book
+    response.status_code = 404
+    return {
+        'message': 'Book not found'
+    }
 
-# @router_v1.delete('/books/{book_id}')
-# async def delete_book(book_id: int, db: Session = Depends(get_db)):
-#     pass
+@app.delete('/api/v1/books/{book_id}')
+def delete_book(book_id: int, book: dict, response: Response):
+    for i, b in enumerate(books):
+        if b['id'] == book_id:
+            del_book = books.pop(i)
+            return del_book
+    response.status_code = 404
+    return {
+        'message': 'Book not found'
+    }
 
-app.include_router(router_v1)
+@app.get('/api/v1/cal/{num}')
+def cal(num: int, response: Response):
+    
+    response.status_code = 404
+    return {
+        'message': 'Book not found'
+    }
 
 if __name__ == '__main__':
     import uvicorn
