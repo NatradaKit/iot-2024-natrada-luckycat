@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, Depends, Response, APIRouter, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, Response, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -10,7 +10,6 @@ from database import SessionLocal, engine
 import models
 
 models.Base.metadata.create_all(bind=engine)
-
 
 app = FastAPI()
 router_v1 = APIRouter(prefix='/api/v1')
@@ -42,66 +41,118 @@ async def get_book(book_id: int, db: Session = Depends(get_db)):
 
 @router_v1.post('/books')
 async def create_book(book: dict, response: Response, db: Session = Depends(get_db)):
-    # TODO: Add validation
-    newbook = models.Book(title=book['title'], author=book['author'], year=book['year'], is_published=book['is_published'])
+    newbook = models.Book(title=book['title'], author=book['author'], year=book['year'], is_published=book['is_published'], details=book['details'], short_details=book['short_details'], genre=book['genre'])
     db.add(newbook)
     db.commit()
     db.refresh(newbook)
     response.status_code = 201
     return newbook
 
-@router_v1.get('/students')
-async def get_students(db: Session = Depends(get_db)):
-    return db.query(models.Student).all()
+@router_v1.patch('/books/{book_id}')
+async def update_book(response: Response ,book_id: int, book: dict, db: Session = Depends(get_db),):
+    db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
+    if db_book:
+        for key, value in book.items():
+            setattr(db_book, key, value)
+        db.commit()
+        db.refresh(db_book)
+        return db_book
+    else:
+        return response.status_code == 404
 
-@router_v1.get('/students/{student_id}')
-async def get_student(student_id: int, db: Session = Depends(get_db)):
-    return db.query(models.Student).filter(models.Student.student_id == student_id).first()
+@router_v1.delete('/books/{book_id}')
+async def delete_book(response: Response, book_id: int, db: Session = Depends(get_db)):
+    db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
+    if db_book:
+        db.delete(db_book)
+        db.commit()
+        return {"message": "Book deleted successfully"}
+    else:
+        return response.status_code == 404
 
-@router_v1.post('/students')
-async def create_student(student: dict, response: Response, db: Session = Depends(get_db)):
-    # TODO: Add validation
-    newstudent = models.Student(firstname=student['firstname'], lastname=student['lastname'], dob=student['dob'], sex=student['sex'])
-    db.add(newstudent)
+
+
+@router_v1.get('/coffee')
+async def get_coffee(db: Session = Depends(get_db)):
+    return db.query(models.Coffee).all()
+
+@router_v1.get('/coffee/{coffee_id}')
+async def get_coffee(coffee_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Coffee).filter(models.Coffee.id == coffee_id).first()
+
+@router_v1.post('/coffee')
+async def create_coffee(coffee: dict, response: Response, db: Session = Depends(get_db)):
+    new_coffee = models.Coffee(name=coffee['name'], description=coffee['description'], price=coffee['price'], is_available=coffee['is_available'])
+    db.add(new_coffee)
     db.commit()
-    db.refresh(newstudent)
+    db.refresh(new_coffee)
     response.status_code = 201
-    return newstudent
+    return new_coffee
 
-@router_v1.delete('/students/{student_id}')
-async def delete_student(student_id: int, response: Response, db: Session = Depends(get_db)):
-    student = db.query(models.Student).filter(models.Student.student_id == student_id).first()
-    if student:
-        db.delete(student)
+@router_v1.patch('/coffee/{coffee_id}')
+async def update_coffee(response: Response ,coffee_id: int, coffee: dict, db: Session = Depends(get_db),):
+    db_coffee = db.query(models.Coffee).filter(models.Coffee.id == coffee_id).first()
+    if db_coffee:
+        for key, value in coffee.items():
+            setattr(db_coffee, key, value)
         db.commit()
-        return {"delete": f" Student id {student_id} deleted successfully"}
+        db.refresh(db_coffee)
+        return db_coffee
     else:
-        response.status_code = 404
-        return {'message': 'Student not found'}
+        return response.status_code == 404
 
-@router_v1.put('/students/{student_id}')
-async def update_student(student_id: int, response: Response, student: dict, db: Session = Depends(get_db)):
-    db_student = db.query(models.Student).filter(models.Student.student_id == student_id).first()
-    if db_student:
-        for key, value in student.items():
-            setattr(db_student, key, value)
+@router_v1.delete('/coffee/{coffee_id}')
+async def delete_coffee(response: Response, coffee_id: int, db: Session = Depends(get_db)):
+    db_coffee = db.query(models.Coffee).filter(models.Coffee.id == coffee_id).first()
+    if db_coffee:
+        db.delete(db_coffee)
         db.commit()
-        return {'message': f'Student with ID {student_id} updated successfully'}
+        return {"message": "Coffee deleted successfully"}
     else:
-        response.status_code = 404
-        return {'message': f'Student ID {student_id} not found'}
-
+        return response.status_code == 404
     
-# @router_v1.patch('/students/{student_id}')
-# async def update_student(student_id: int, student: dict, db: Session = Depends(get_db)):
-#     pass
+    
+@router_v1.get('/orders')
+async def get_orders(db: Session = Depends(get_db)):
+    return db.query(models.Order).all()
 
-# @router_v1.delete('/students/{student_id}')
-# async def delete_student(student_id: int, db: Session = Depends(get_db)):
-#     pass
+@router_v1.get('/orders/{order_id}')
+async def get_order(order_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Order).filter(models.Order.id == order_id).first()
 
+@router_v1.post('/orders')
+async def create_order(order: dict, response: Response, db: Session = Depends(get_db)):
+    new_order = models.Order(coffee_id=order['coffee_id'], order_date=order['order_date'], quantity=order['quantity'], total_price=order['total_price'], notes=order['notes'])
+    db.add(new_order)
+    db.commit()
+    db.refresh(new_order)
+    response.status_code = 201
+    return new_order
+
+@router_v1.patch('/orders/{order_id}')
+async def update_order(response: Response ,order_id: int, order: dict, db: Session = Depends(get_db),):
+    db_order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if db_order:
+        for key, value in order.items():
+            setattr(db_order, key, value)
+        db.commit()
+        db.refresh(db_order)
+        return db_order
+    else:
+        return response.status_code == 404
+
+@router_v1.delete('/orders/{order_id}')
+async def delete_order(response: Response, order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if db_order:
+        db.delete(db_order)
+        db.commit()
+        return {"message": "Order deleted successfully"}
+    else:
+        return response.status_code == 404
+
+# ...
 app.include_router(router_v1)
-
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app)
